@@ -47,6 +47,69 @@ jobs:
       - name: Initialize repository
         run: ./.github/script/initialize-repository.sh
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}name: Step 0, Welcome
+
+# This step triggers after the learner creates a new repository from the template.
+# This workflow updates from step 0 to step 1.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  # Get the current step to only run the main job when the learner is on the same step.
+  get_current_step:
+    name: Check current step number
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - id: get_step
+        run: |
+          echo "current_step=$(cat ./.github/steps/-step.txt)" >> $GITHUB_OUTPUT
+    outputs:
+      current_step: ${{ steps.get_step.outputs.current_step }}
+
+  on_start:
+    name: On start
+    needs: get_current_step
+    if: >-
+      ${{ !github.event.repository.is_template
+          && needs.get_current_step.outputs.current_step == 0 }}
+
+    runs-on: ubuntu-latest
+
+    steps:
+      # We'll need to check out the repository so that we can edit the README.
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Create a release-v1.0 branch.
+      - name: Initialize repository
+        run: ./.github/script/initialize-repository.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Update README from step 0 to step 1.
+      - name: Update to step 1
+        uses: skills/action-update-step@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          from_step: 0
+          to_step: 1
+
+      # Push changes to the main branch
+      - name: Push changes to the main branch
+        run: git push origin HEAD:main
+        env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Update README from step 0 to step 1.
